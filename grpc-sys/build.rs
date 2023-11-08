@@ -365,7 +365,7 @@ fn get_env(name: &str) -> Option<String> {
     feature = "_gen-bindings",
     not(all(
         any(target_os = "linux", target_os = "macos"),
-        any(target_arch = "x86_64", target_arch = "aarch64")
+        any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "riscv64")
     ))
 ))]
 fn bindgen_grpc(file_path: &Path) {
@@ -447,29 +447,24 @@ fn bindgen_grpc(file_path: &Path) {
 // Other platforms use bindgen to generate the bindings every time.
 fn config_binding_path() {
     let target = env::var("TARGET").unwrap();
-    let file_path: PathBuf = match target.as_str() {
-        "x86_64-unknown-linux-gnu"
-        | "x86_64-unknown-linux-musl"
-        | "aarch64-unknown-linux-gnu"
-        | "x86_64-apple-darwin"
-        | "aarch64-apple-darwin" => {
-            // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
-            // directive when we expect the target-specific pre-generated binding file to be
-            // present.
-            println!("cargo:rerun-if-changed=bindings/bindings.rs");
+    let mut file_path: PathBuf = PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs");
+    if (target.contains("x86_64") || target.contains("aarch64") || target.contains("riscv64")) &&
+        (target.contains("linux") || target.contains("apple")) {
+        // Cargo treats nonexistent files changed, so we only emit the rerun-if-changed
+        // directive when we expect the target-specific pre-generated binding file to be
+        // present.
+        println!("cargo:rerun-if-changed=bindings/bindings.rs");
 
-            PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("bindings")
-                .join("bindings.rs")
-        }
-        _ => PathBuf::from(env::var("OUT_DIR").unwrap()).join("grpc-bindings.rs"),
+        file_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("bindings")
+            .join("bindings.rs");
     };
 
     #[cfg(any(
         feature = "_gen-bindings",
         not(all(
             any(target_os = "linux", target_os = "macos"),
-            any(target_arch = "x86_64", target_arch = "aarch64")
+            any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "riscv64")
         ))
     ))]
     {
